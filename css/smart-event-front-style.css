@@ -1,0 +1,91 @@
+/* Wrapper */
+		.event-listing-wrapper {
+			max-width: 1200px;
+			margin: 0 auto;
+			padding: 40px 20px;
+			font-family: inherit;
+		}
+
+		/* Heading */
+		.event-heading {
+			font-size: 2rem;
+			text-align: center;
+			margin-bottom: 30px;
+			color: #333;
+		}
+
+		/* Grid */
+		.event-listing-grid {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+			gap: 25px;
+		}
+
+		/* Card */
+		.event-card {
+			background: #fff;
+			border: 1px solid #e5e5e5;
+			border-radius: 6px;
+			padding: 16px;
+			transition: box-shadow 0.2s ease;
+		}
+
+		.event-card:hover {
+			box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+		}
+
+		/* Feature Image */
+		.event-thumb img {
+			width: 100%;
+			height: auto;
+			border-radius: 4px;
+		}
+
+		/* Title */
+		.event-title {
+			font-size: 1.25rem;
+			margin: 15px 0 10px;
+			color: #222;
+		}
+
+		/* Description */
+		.event-excerpt {
+			font-size: 0.95rem;
+			color: #555;
+			margin-bottom: 20px;
+		}
+
+		/* CTA Button */
+		.event-btn {
+			display: inline-block;
+			padding: 10px 18px;
+			background: #0073aa; /* WordPress primary color */
+			color: #fff;
+			text-decoration: none;
+			border-radius: 4px;
+			transition: background 0.2s ease;
+		}
+
+		.event-btn:hover {
+			background: #005c88;
+		}
+
+		/* Pagination */
+		.event-pagination {
+			text-align: center;
+			margin-top: 30px;
+		}
+
+		.event-pagination .page-numbers {
+			display: inline-block;
+			margin: 0 5px;
+			padding: 8px 14px;
+			border: 1px solid #ddd;
+			color: #333;
+			text-decoration: none;
+			border-radius: 4px;
+		}
+
+		.event-pagination .page-numbers:hover {
+			background: #f0f0f0;
+		}
