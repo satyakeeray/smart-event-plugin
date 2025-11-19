@@ -62,8 +62,8 @@ function smart_event_dates_callback( $post ) {
     wp_nonce_field( 'smart_event_save_dates', 'smart_event_dates_nonce' );
 
     // Get existing values
-    $start_date = get_post_meta( $post->ID, 'event-start-date', true );
-    $end_date   = get_post_meta( $post->ID, 'event-end-date', true );
+    $start_date = get_post_meta( $post->ID, 'event_start_date', true );
+    $end_date   = get_post_meta( $post->ID, 'event_end_date', true );
 
     ?>
     <style>
@@ -98,14 +98,32 @@ function smart_event_save_dates( $post_id ) {
         return;
     }
 
+	$start_date = isset($_POST['event_start_date']) ? sanitize_text_field($_POST['event_start_date']) : '';
+    $end_date   = isset($_POST['event_end_date'])   ? sanitize_text_field($_POST['event_end_date'])   : '';
+
+	if ( ! empty($start_date) && ! empty($end_date) ) {
+		$start_ts = strtotime($start_date);
+		$end_ts   = strtotime($end_date);
+
+		if ( $end_ts < $start_ts ) {
+
+			// Add admin notice
+			add_filter('redirect_post_location', function( $location ) {
+				return add_query_arg( 'event_date_error', 1, $location );
+			});
+
+			return; // Do NOT save invalid date
+		}
+	}
+
     // Save start date
-    if ( isset( $_POST['event_start_date'] ) ) {
-        update_post_meta( $post_id, 'event_start_date', sanitize_text_field( $_POST['event_start_date'] ) );
+    if ( isset( $start_date ) ) {
+        update_post_meta( $post_id, 'event_start_date',  $start_date );
     }
 
     // Save end date
-    if ( isset( $_POST['event_end_date'] ) ) {
-        update_post_meta( $post_id, 'event_end_date', sanitize_text_field( $_POST['event_end_date'] ) );
+    if ( isset( $end_date ) ) {
+        update_post_meta( $post_id, 'event_end_date', $end_date  );
     }
 
 }
@@ -128,6 +146,12 @@ function smart_event_custom_columns( $columns ) {
 
     return $new_columns;
 }
+
+add_action( 'admin_notices', function() {
+    if ( isset($_GET['event_date_error']) ) {
+        echo '<div class="notice notice-error"><p><strong>Event End Date cannot be earlier than Event Start Date.</strong></p></div>';
+    }
+});
 
 // Display value in custom column
 add_action( 'manage_event_posts_custom_column', 'sp_event_custom_column_content', 10, 2 );
@@ -204,8 +228,10 @@ function upcoming_events_shortcode( $atts ) {
 	$title      = ( empty($title) ) ? '' : $title;
 	$event_type = ( empty($event_type) ) ? 'all' : $event_type;
 
+	$block_id   = generate_random_code();
 	?>
-	<section class="event-listing-wrapper">
+	<div class="loader loader-<?php echo $block_id; ?>"><img src="<?php echo plugin_dir_url(__FILE__) . 'images/loader.gif'?>"></div>
+	<section class="event-listing-wrapper event-listing-wrapper-<?php echo $block_id; ?>" data-block-id="<?php echo $block_id; ?>">
 		<?php echo smart_events_html( $event_type, $title, $limit, 1 ); ?>
 	</section>
 	<?php
@@ -263,7 +289,7 @@ if( !function_exists('smart_events_html') ) {
 		$events = new WP_Query( $args );
 		if( $events->have_posts() ) {
 			?>
-			<div class="smart-event-list">
+			<div class="smart-event-list" id="smart-event-container" data-event-type="<?php echo $event_type; ?>" data-limit="<?php echo $limit; ?>" data-title="<?php echo esc_html( $title ); ?>" data-page="<?php echo $paged; ?>">
 				<?php if( !empty( $title ) ): ?>
 					<h2 class="event-heading"><?php echo esc_html( $title ); ?></h2>
 				<?php endif; ?>
@@ -281,6 +307,8 @@ if( !function_exists('smart_events_html') ) {
 								<?php
 								if ( has_post_thumbnail() ) {
 									the_post_thumbnail( 'medium' );
+								} else {
+									echo '<img src="' . plugin_dir_url(__FILE__) . 'images/no-image.png" alt="Placeholder">';
 								}
 								?>
 							</div>
@@ -288,9 +316,8 @@ if( !function_exists('smart_events_html') ) {
 							<h3 class="event-title"><?php the_title(); ?></h3>
 
 							<div class="event-dates">
-								<?php echo esc_html( date("d-m-Y", strtotime($start_date)) ); ?>
-								-
-								<?php echo esc_html( date("d-m-Y", strtotime($end_date)) ); ?>
+								<div class="date-lables"><strong>Start Date</strong>: <span><?php echo esc_html( date("d-m-Y", strtotime($start_date)) ); ?></span></div>
+								<div class="date-lables"><strong>End Date</strong>: <span><?php echo esc_html( date("d-m-Y", strtotime($end_date)) ); ?></span></div>	
 							</div>
 
 							<p class="event-excerpt">
@@ -307,7 +334,10 @@ if( !function_exists('smart_events_html') ) {
 				<nav class="event-pagination">
 					<?php
 					echo paginate_links([
-						'total' => $events->max_num_pages
+						'total' => $events->max_num_pages,
+						'current' => $paged,
+						'prev_text' => __('&laquo;'), 
+    					'next_text' => __('&raquo;'),
 					]);
 					?>
 				</nav>
@@ -321,4 +351,39 @@ if( !function_exists('smart_events_html') ) {
 		wp_reset_postdata();
 		return ob_get_clean();
 	}
+}
+
+add_action( 'wp_enqueue_scripts', 'smart_events_enqueue_ajax_script' );
+function smart_events_enqueue_ajax_script() {
+    wp_enqueue_script(
+        'smart-event-ajax',
+        plugin_dir_url(__FILE__) . 'js/smart-event.js',
+        array('jquery'),
+        false,
+        true
+    );
+
+    wp_localize_script( 'smart-event-ajax', 'smartEventAjax', array(
+        'ajax_url' => admin_url( 'admin-ajax.php' ),
+        'nonce'    => wp_create_nonce( 'event_ajax_nonce' ),
+    ));
+}
+
+
+add_action( 'wp_ajax_smart_event_pagination', 'smart_event_pagination' );
+add_action( 'wp_ajax_nopriv_smart_event_pagination', 'smart_event_pagination' );
+
+function smart_event_pagination() {
+    check_ajax_referer( 'event_ajax_nonce', 'security' );
+	$paged 		= intval( $_POST['paged'] );
+	$limit      = intval( $_POST['limit'] );
+	$title      = sanitize_text_field( $_POST['title'] );
+	$event_type = sanitize_text_field( $_POST['event_type'] );
+	echo smart_events_html( $event_type, $title, $limit, $paged );
+    wp_die();
+}
+
+
+function generate_random_code($length = 6) {
+    return substr(str_shuffle('abcdefghijklmnopqrst0123456789'), 0, $length);
 }
