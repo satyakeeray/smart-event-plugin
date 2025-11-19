@@ -1,9 +1,3 @@
-jQuery(document).ready(function($) {
-
-    
-
-});
-
 jQuery(document).on( 'click', '.event-pagination a' , function(e) {
     e.preventDefault();
     let current_block_id = jQuery(this).closest('.event-listing-wrapper').data('block-id');
